@@ -1,6 +1,7 @@
 # matt doesn't like ide config stuff :(
 .idea
 .vscode
+*.code-workspace
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
