@@ -1,8 +1,8 @@
-"""Setup for the polyumi_ros package."""
+"""Setup for the polyumi_ros2 package."""
 
 from setuptools import find_packages, setup
 
-package_name = 'polyumi_ros'
+package_name = 'polyumi_ros2'
 
 setup(
     name=package_name,
