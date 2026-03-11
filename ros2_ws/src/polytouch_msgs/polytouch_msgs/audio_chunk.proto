@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+// segment of audio stream
+message AudioChunk {
+  uint64 timestamp_ns = 1;
+  bytes pcm_data = 2;
+  uint32 sample_rate = 3;
+  uint32 channels = 4;
+}

@@ -1,5 +1,7 @@
 """Setup for the polytouch_msgs package."""
 
+import glob
+
 from grpc_tools import protoc
 from setuptools import find_packages, setup
 
@@ -8,15 +10,16 @@ package_name = 'polytouch_msgs'
 
 def compile_protos():
     """Compile the protobuf files."""
-    proto_file = 'polyumi_msgs/camera_frame.proto'
-    protoc.main(
-        [
-            'grpc_tools.protoc',
-            '-I=polyumi_msgs',
-            '--python_out=polyumi_msgs',
-            proto_file,
-        ]
-    )
+    proto_files = glob.glob('polytouch_msgs/*.proto')
+    for proto_file in proto_files:
+        protoc.main(
+            [
+                'grpc_tools.protoc',
+                '-I=polytouch_msgs',
+                '--python_out=polytouch_msgs',
+                proto_file,
+            ]
+        )
 
 
 compile_protos()
