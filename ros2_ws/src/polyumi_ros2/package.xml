@@ -14,6 +14,7 @@
   <test_depend>python3-pytest</test_depend>
 
   <exec_depend>foxglove_bridge</exec_depend>
+  <exec_depend>v4l2_camera</exec_depend>
 
   <export>
     <build_type>ament_python</build_type>
