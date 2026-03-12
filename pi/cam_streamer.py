@@ -18,7 +18,7 @@ log = logging.getLogger('pi_cam_process')
 class CameraStreamer:
     """Class for streaming camera data."""
 
-    VIEW_WIDTH = 540
+    VIEW_WIDTH = 620
     VIEW_HEIGHT = 480
 
     def __init__(self, port: int, fps: int, zmq_context: zmq.Context):
