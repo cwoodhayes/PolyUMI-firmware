@@ -2,7 +2,6 @@
 
 import glob
 
-from grpc_tools import protoc
 from setuptools import find_packages, setup
 
 package_name = 'polytouch_msgs'
@@ -10,6 +9,8 @@ package_name = 'polytouch_msgs'
 
 def compile_protos():
     """Compile the protobuf files."""
+    from grpc_tools import protoc
+
     proto_files = glob.glob('polytouch_msgs/*.proto')
     for proto_file in proto_files:
         protoc.main(
