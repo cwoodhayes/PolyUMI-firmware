@@ -44,9 +44,24 @@ uv pip install -e ~/polyumi_pi_msgs
 
 **Recommended for Development**: if using VS Code, add the `rsync` commands above to your `.vscode/tasks.json` as a build command.
 
-## Run Franka Streaming Demo
+## Run Demos
+
+### Streaming Demo
+This demo streams data from all sensors simultaneously into Foxglove.
+
 ```bash
 # launch the demo
 ros2 launch polyumi_ros2 stream_demo.launch.xml
 ```
 Then open [foxglove](https://app.foxglove.dev) in your browser, and connect to `ws://localhost:8765` (the default).
+Drag and drop `ros2_ws/src/polyumi_ros2/foxglove/stream_demo.json` into the UI.
+
+### Franka Demo
+This demo is the streaming demo for the PolyUMI Franka end-effector, which includes a visualization of the real-time movements of the Franka arm. Must be connected to the arm, of course.
+
+```bash
+# launch the demo
+ros2 launch polyumi_ros2 stream_demo.launch.xml
+```
+Then open [foxglove](https://app.foxglove.dev) in your browser, and connect to `ws://localhost:8765` (the default).
+Drag and drop `ros2_ws/src/polyumi_ros2/foxglove/stream_demo.json` into the UI.
