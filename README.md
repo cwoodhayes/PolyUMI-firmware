@@ -7,7 +7,7 @@ Author: Conor Hayes
 ### PC setup
 ```bash
 cd ros2_ws
-rosdep install --from-paths src/ --rosdistro kilted
+rosdep install --from-paths src --ignore-src -r --rosdistro kilted
 colcon build
 source install/setup.bash
 ```

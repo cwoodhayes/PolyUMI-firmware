@@ -1,6 +1,7 @@
 """Setup for the polyumi_pi_msgs package."""
 
-import glob
+import shutil
+from pathlib import Path
 
 from setuptools import find_packages, setup
 
@@ -9,18 +10,26 @@ package_name = 'polyumi_pi_msgs'
 
 def compile_protos():
     """Compile the protobuf files."""
-    from grpc_tools import protoc
+    from grpc_tools import protoc  # type: ignore
 
-    proto_files = glob.glob('polyumi_pi_msgs/*.proto')
+    package_dir = Path(__file__).resolve().parent
+    proto_root = package_dir / package_name
+    proto_files = sorted(proto_root.glob('*.proto'))
+
     for proto_file in proto_files:
-        protoc.main(
-            [
-                'grpc_tools.protoc',
-                '-I=polyumi_pi_msgs',
-                '--python_out=polyumi_pi_msgs',
-                proto_file,
-            ]
-        )
+        proto_cmd = [
+            'grpc_tools.protoc',
+            f'-I={proto_root}',
+            f'--python_out={proto_root}',
+        ]
+        proto_cmd.append(str(proto_file))
+
+        result = protoc.main(proto_cmd)
+
+        if result != 0:
+            raise RuntimeError(
+                f'Failed to compile protobuf file: {proto_file}'
+            )
 
 
 compile_protos()

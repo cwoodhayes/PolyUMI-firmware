@@ -52,7 +52,7 @@ def stream(
             # Capture and encode frame as JPEG
             jpeg_bytes = cam.capture_image('main').tobytes()
 
-            msg = camera_frame_pb2.CameraFrame()  # pyright: ignore[reportAttributeAccessIssue]
+            msg = camera_frame_pb2.CameraFrame()
             msg.timestamp_ns = t_ns
             msg.jpeg_data = jpeg_bytes
             msg.width = width
