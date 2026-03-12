@@ -1,4 +1,4 @@
-# PolyUMI - Visual-Auditory-Tactile Manipulation Data Collector
+# PolyUMI - Visual-Auditory-Tactile Manipulator for Imitation Learning
 
 Author: Conor Hayes
 
