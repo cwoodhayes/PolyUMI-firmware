@@ -13,4 +13,9 @@
     <param name="image_raw.enable_pub_plugins"
            value="['image_transport/raw', 'image_transport/compressed']"/>
   </node>
+
+  <node pkg="polyumi_ros2" exec="pi_receiver_node" 
+    name="pi_receiver" output="screen" namespace="pi">
+  </node>
+
 </launch>
