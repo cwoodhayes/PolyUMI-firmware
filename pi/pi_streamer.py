@@ -45,7 +45,7 @@ def compute_scaler_crop(
     width: int,
     height: int,
 ) -> tuple[int, int, int, int]:
-    """Compute a top-aligned ScalerCrop rect for the requested aspect."""
+    """Compute a top-right ScalerCrop rect for the requested aspect."""
     bounds = cam.camera_controls.get('ScalerCrop')
     rects: list[tuple[int, int, int, int]] = []
     if isinstance(bounds, tuple):
@@ -80,7 +80,7 @@ def compute_scaler_crop(
         crop_height = sensor_height
         crop_width = int(round(crop_height * target_aspect))
 
-    x = base_x + max(0, (sensor_width - crop_width) // 2)
+    x = base_x + max(0, sensor_width - crop_width)
     y = base_y
     return (x, y, crop_width, crop_height)
 
@@ -101,21 +101,6 @@ def stream(
     socket.bind(f'tcp://*:{port}')
     log.info(f'ZMQ PUSH bound on tcp://*:{port}')
 
-    # cam = Picamera2()
-    # config = cam.create_video_configuration(
-    #     main={'format': 'YUV420', 'size': (1600, 900)},
-    # )
-    # cam.configure(config)
-    # cam.start()
-    # scaler_crop = compute_scaler_crop(cam, width=width, height=height)
-    # log.info(f'Camera started at {width}x{height} @ {fps}Hz')
-    # log.info(f'Publishing to tcp://<pi_ip>:{port}')
-    # cam.set_controls({'ScalerCrop': scaler_crop})
-    # log.info(
-    #     f'Requested ScalerCrop={scaler_crop}, '
-    #     f'sensor={cam.sensor_resolution}, '
-    #     f'control_bounds={cam.camera_controls.get("ScalerCrop")}'
-    # )
     cam = Picamera2()
     # we want the 2nd mode for full FOV.
     mode = cam.sensor_modes[1]
@@ -125,6 +110,16 @@ def stream(
     )
     cam.configure(config)
     cam.start()
+
+    scaler_crop = compute_scaler_crop(cam, width=width, height=height)
+    log.info(f'Camera started at {width}x{height} @ {fps}Hz')
+    log.info(f'Publishing to tcp://<pi_ip>:{port}')
+    cam.set_controls({'ScalerCrop': scaler_crop})
+    log.info(
+        f'Requested ScalerCrop={scaler_crop}, '
+        f'sensor={cam.sensor_resolution}, '
+        f'control_bounds={cam.camera_controls.get("ScalerCrop")}'
+    )
 
     interval = 1.0 / fps
     first_frame_logged = False
