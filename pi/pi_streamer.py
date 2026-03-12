@@ -88,7 +88,7 @@ def compute_scaler_crop(
 @app.command()
 def stream(
     port: int = typer.Option(5555, help='ZMQ PUSH port to bind on.'),
-    width: int = typer.Option(640, help='Capture width in pixels.'),
+    width: int = typer.Option(540, help='Capture width in pixels.'),
     height: int = typer.Option(480, help='Capture height in pixels.'),
     fps: int = typer.Option(10, min=1, help='Target capture framerate (Hz).'),
 ):
