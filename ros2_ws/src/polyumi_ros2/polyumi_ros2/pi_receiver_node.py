@@ -127,9 +127,13 @@ class PiReceiverNode(Node):
             self.camera_pub.publish(ros_msg)
 
     def _audio_recv_loop(self):
-        sock = self._zmq_context.socket(zmq.SUB)
-        sock.setsockopt(zmq.SUBSCRIBE, b'')
+        sock = self._zmq_context.socket(zmq.PULL)
         sock.connect(f'tcp://{self._pi_host}:{self._audio_port}')
+
+        last_ts_ns = 0
+        chunks = 0
+        gap_warnings = 0
+        last_stats_t = self.get_clock().now().nanoseconds
 
         while rclpy.ok():
             try:
@@ -141,13 +145,45 @@ class PiReceiverNode(Node):
             proto = audio_chunk_pb2.AudioChunk()
             proto.ParseFromString(raw)
 
+            bytes_per_sample = max(1, proto.bit_depth // 8)
+            frame_bytes = max(1, proto.channels * bytes_per_sample)
+            sample_frames = len(proto.pcm_data) // frame_bytes
+            if proto.sample_rate > 0:
+                expected_delta_ns = int(
+                    sample_frames * 1_000_000_000 / proto.sample_rate
+                )
+            else:
+                expected_delta_ns = 0
+
+            if last_ts_ns and expected_delta_ns > 0:
+                delta_ns = proto.timestamp_ns - last_ts_ns
+                if delta_ns > int(expected_delta_ns * 1.5):
+                    gap_warnings += 1
+                    self.get_logger().warning(
+                        'Audio timestamp gap: '
+                        f'delta={delta_ns / 1e6:.2f}ms '
+                        f'expected={expected_delta_ns / 1e6:.2f}ms'
+                    )
+            last_ts_ns = proto.timestamp_ns
+            chunks += 1
+
             ros_msg = RawAudio()
             ros_msg.timestamp = ns_to_ros_time(proto.timestamp_ns)
-            ros_msg.data = list(proto.pcm_data)
+            ros_msg.data = proto.pcm_data
             ros_msg.format = 'pcm-s16'
             ros_msg.sample_rate = proto.sample_rate
             ros_msg.number_of_channels = proto.channels
             self.audio_pub.publish(ros_msg)
+
+            now_ns = self.get_clock().now().nanoseconds
+            if now_ns - last_stats_t >= 1_000_000_000:
+                self.get_logger().info(
+                    'Audio rx stats: '
+                    f'chunks={chunks}/s gaps={gap_warnings}'
+                )
+                chunks = 0
+                gap_warnings = 0
+                last_stats_t = now_ns
 
     def destroy_node(self):
         """Terminate ZMQ resources before shutting down the ROS2 node."""

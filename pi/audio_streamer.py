@@ -5,7 +5,6 @@ import queue
 import threading
 import time
 
-import numpy as np
 import sounddevice as sd
 import zmq
 from polyumi_pi_msgs.audio_chunk_pb2 import AudioChunk
@@ -67,27 +66,41 @@ class AudioStreamer:
         blocksize = int(self.sample_rate * self.chunk_ms / 1000)
 
         # ZMQ setup
-        ctx = zmq.Context()
-        sock = ctx.socket(zmq.PUB)
+        sock = self.zmq_context.socket(zmq.PUSH)
+        sock.setsockopt(zmq.SNDHWM, 200)
+        sock.setsockopt(zmq.LINGER, 0)
         sock.bind(f'tcp://*:{self.port}')
-        log.info(f'Publishing AudioChunk on tcp://*:{self.port}')
+        log.info(f'PUSH AudioChunk on tcp://*:{self.port}')
 
         # Small queue to decouple sounddevice callback from ZMQ publish
-        audio_queue: queue.Queue = queue.Queue(maxsize=20)
+        audio_queue: queue.Queue = queue.Queue(maxsize=100)
+        callback_drops = 0
+        sent_chunks = 0
+        last_stats = time.monotonic()
 
         def callback(
-            indata: np.ndarray,
+            indata,
             frames: int,
             time_info,
             status: sd.CallbackFlags,
         ):
+            nonlocal callback_drops
             if status:
                 log.warning(f'[sounddevice] {status}')
-            # Timestamp at callback entry - monotonic nanoseconds
-            ts = time.monotonic_ns()
-            # indata shape: (frames, channels), dtype int16
-            # Copy is important - indata buffer is reused by sounddevice
-            audio_queue.put_nowait((indata.copy(), ts))
+            ts = time.time_ns()
+            pcm_bytes = bytes(indata)
+            try:
+                audio_queue.put_nowait((pcm_bytes, ts))
+            except queue.Full:
+                callback_drops += 1
+                try:
+                    audio_queue.get_nowait()
+                except queue.Empty:
+                    pass
+                try:
+                    audio_queue.put_nowait((pcm_bytes, ts))
+                except queue.Full:
+                    callback_drops += 1
 
         device_index = self.find_device_index(self.DEVICE_NAME)
         log.info(
@@ -95,28 +108,42 @@ class AudioStreamer:
             f'{sd.query_devices(device_index)["name"]}'
         )
         log.info(
-            f'Sample rate: {self.sample_rate} Hz | Channels: {self.channels} | '
+            f'Sample rate: {self.sample_rate} Hz '
+            f'| Channels: {self.channels} | '
             f'Chunk: {self.chunk_ms}ms ({blocksize} frames)'
         )
 
         # Publisher thread - keeps ZMQ sends off the audio callback
         def publisher():
+            nonlocal callback_drops, sent_chunks, last_stats
             while True:
                 try:
-                    indata, ts = audio_queue.get(timeout=1.0)
+                    pcm_bytes, ts = audio_queue.get(timeout=1.0)
                 except queue.Empty:
                     continue
-                pcm_bytes = indata.astype(np.int16).tobytes()
                 msg = self.build_chunk(
                     pcm_bytes, self.sample_rate, self.channels, ts
                 )
                 sock.send(msg)
+                sent_chunks += 1
+
+                now = time.monotonic()
+                if now - last_stats >= 1.0:
+                    log.info(
+                        'Audio tx stats: '
+                        f'sent={sent_chunks}/s '
+                        f'queue={audio_queue.qsize()} '
+                        f'cb_drops={callback_drops}'
+                    )
+                    sent_chunks = 0
+                    callback_drops = 0
+                    last_stats = now
 
         pub_thread = threading.Thread(target=publisher, daemon=True)
         pub_thread.start()
 
         # Start capture stream
-        with sd.InputStream(
+        with sd.RawInputStream(
             device=device_index,
             samplerate=self.sample_rate,
             channels=self.channels,
