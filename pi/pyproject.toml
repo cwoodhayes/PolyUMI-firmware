@@ -14,3 +14,9 @@ dependencies = [
     "typer>=0.24.1",
     "uvicorn>=0.41.0",
 ]
+
+[dependency-groups]
+# this should be installed using apt on the Pi, not pip
+# but for development convenience we can install it in the 
+# PC virtualenv here with uv
+dev = ["picamera2"]
