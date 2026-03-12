@@ -2,6 +2,7 @@
 
 import logging
 import queue
+import signal
 import threading
 import time
 
@@ -77,6 +78,15 @@ class AudioStreamer:
         callback_drops = 0
         sent_chunks = 0
         last_stats = time.monotonic()
+        stop_event = threading.Event()
+
+        def handle_shutdown(signum, _frame):
+            signal_name = signal.Signals(signum).name
+            log.info(f'Received signal {signal_name}, shutting down.')
+            stop_event.set()
+
+        prev_sigint = signal.signal(signal.SIGINT, handle_shutdown)
+        prev_sigterm = signal.signal(signal.SIGTERM, handle_shutdown)
 
         def callback(
             indata,
@@ -116,7 +126,7 @@ class AudioStreamer:
         # Publisher thread - keeps ZMQ sends off the audio callback
         def publisher():
             nonlocal callback_drops, sent_chunks, last_stats
-            while True:
+            while not stop_event.is_set() or not audio_queue.empty():
                 try:
                     pcm_bytes, ts = audio_queue.get(timeout=1.0)
                 except queue.Empty:
@@ -153,9 +163,14 @@ class AudioStreamer:
         ):
             log.info('Streaming... Ctrl+C to stop.')
             try:
-                while True:
+                while not stop_event.is_set():
                     time.sleep(0.1)
             except KeyboardInterrupt:
                 log.info('\nStopping.')
+                stop_event.set()
 
+        stop_event.set()
+        pub_thread.join(timeout=2.0)
+        signal.signal(signal.SIGINT, prev_sigint)
+        signal.signal(signal.SIGTERM, prev_sigterm)
         sock.close()

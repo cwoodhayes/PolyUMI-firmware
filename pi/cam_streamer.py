@@ -3,6 +3,7 @@
 import io
 import json
 import logging
+import signal
 import time
 
 import numpy as np
@@ -53,8 +54,18 @@ class CameraStreamer:
 
         interval = 1.0 / self.fps
         first_frame_logged = False
+        stop_requested = False
+
+        def handle_shutdown(signum, _frame):
+            nonlocal stop_requested
+            log.info(f'Received {signal.Signals(signum).name}. shutting down.')
+            stop_requested = True
+
+        prev_sigint = signal.signal(signal.SIGINT, handle_shutdown)
+        prev_sigterm = signal.signal(signal.SIGTERM, handle_shutdown)
+
         try:
-            while True:
+            while not stop_requested:
                 t_start = time.monotonic()
 
                 # Capture and encode frame as JPEG
@@ -89,6 +100,8 @@ class CameraStreamer:
         except KeyboardInterrupt:
             log.info('Interrupted, shutting down.')
         finally:
+            signal.signal(signal.SIGINT, prev_sigint)
+            signal.signal(signal.SIGTERM, prev_sigterm)
             self.cam.stop()
             socket.close()
 

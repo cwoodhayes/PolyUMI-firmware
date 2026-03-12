@@ -35,7 +35,8 @@ class LEDManager:
         duty_cycle = int(brightness * 100)
         self.pwm.change_duty_cycle(duty_cycle)
         log.info(
-            f'Set LED brightness to {brightness:.2f} (duty cycle: {duty_cycle}%)'
+            f'Set LED brightness to {brightness:.2f} '
+            f'(duty cycle: {duty_cycle}%)'
         )
 
     def __del__(self) -> None:

@@ -9,6 +9,7 @@ Usage:
 """
 
 import logging
+import multiprocessing
 import os
 
 import typer
@@ -24,6 +25,47 @@ logging.basicConfig(level=os.environ.get('LOG_LEVEL', 'INFO').upper())
 log = logging.getLogger('pi_streamer')
 
 app = typer.Typer()
+
+
+def _stop_child_process(process: multiprocessing.Process | None) -> None:
+    if process is None or not process.is_alive():
+        return
+
+    process.terminate()
+    process.join(timeout=2)
+    if process.is_alive():
+        log.warning(f'Force-killing process pid={process.pid}')
+        process.kill()
+        process.join(timeout=2)
+
+
+def _run_video_streamer(port: int, fps: int):
+    context = zmq.Context()
+    streamer = CameraStreamer(port=port, fps=fps, zmq_context=context)
+    try:
+        streamer.start()
+    finally:
+        context.term()
+
+
+def _run_audio_streamer(
+    port: int,
+    sample_rate: int,
+    chunk_ms: int,
+    channels: int,
+):
+    context = zmq.Context()
+    streamer = AudioStreamer(
+        port=port,
+        sample_rate=sample_rate,
+        zmq_context=context,
+        chunk_ms=chunk_ms,
+        channels=channels,
+    )
+    try:
+        streamer.start()
+    finally:
+        context.term()
 
 
 @app.command()
@@ -73,6 +115,47 @@ def stream_audio(
         streamer.start()
     finally:
         context.term()
+
+
+@app.command()
+def stream(
+    video_port: int = typer.Option(5555, help='ZMQ PUSH port for video.'),
+    audio_port: int = typer.Option(5556, help='ZMQ PUSH port for audio.'),
+    fps: int = typer.Option(10, min=1, help='Target capture framerate (Hz).'),
+    sample_rate: int = typer.Option(16000, help='Audio sample rate (Hz).'),
+    chunk_ms: int = typer.Option(20, help='Audio chunk size (ms).'),
+    channels: int = typer.Option(1, help='Number of audio channels.'),
+):
+    """Stream both video and audio data over ZMQ."""
+    log.info(f'Log level: {logging.getLevelName(log.level)}')
+    led = LEDManager()
+    cam_process: multiprocessing.Process | None = None
+    audio_process: multiprocessing.Process | None = None
+
+    try:
+        led.set_brightness(1.0)
+        log.info('Starting camera streamer...')
+        cam_process = multiprocessing.Process(
+            target=_run_video_streamer,
+            args=(video_port, fps),
+        )
+        cam_process.start()
+
+        log.info('Starting audio streamer...')
+        audio_process = multiprocessing.Process(
+            target=_run_audio_streamer,
+            args=(audio_port, sample_rate, chunk_ms, channels),
+        )
+        audio_process.start()
+
+        cam_process.join()
+        audio_process.join()
+    except KeyboardInterrupt:
+        log.info('Keyboard interrupt received, stopping child streamers...')
+    finally:
+        _stop_child_process(cam_process)
+        _stop_child_process(audio_process)
+        led.set_brightness(0.0)
 
 
 if __name__ == '__main__':
