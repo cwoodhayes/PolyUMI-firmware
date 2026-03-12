@@ -1,4 +1,4 @@
-# {Repo Name}
+# PolyUMI - Visual-Auditory-Tactile Manipulation Data Collector
 
 Author: Conor Hayes
 
@@ -58,6 +58,8 @@ Drag and drop `ros2_ws/src/polyumi_ros2/foxglove/stream_demo.json` into the UI.
 
 ### Franka Demo
 This demo is the streaming demo for the PolyUMI Franka end-effector, which includes a visualization of the real-time movements of the Franka arm. Must be connected to the arm, of course.
+
+TODO - explain how to get matt's franka repo
 
 ```bash
 # launch the demo
