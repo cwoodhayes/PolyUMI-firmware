@@ -49,6 +49,12 @@ uv pip install -e ~/polyumi_pi_msgs
 ### Streaming Demo
 This demo streams data from all sensors simultaneously into Foxglove.
 
+On the RPi, from the `pi` directory after the setup steps in [Library Setup](#library-setup) above:
+```bash
+python main.py
+```
+
+On PC:
 ```bash
 # launch the demo
 ros2 launch polyumi_ros2 stream_demo.launch.xml

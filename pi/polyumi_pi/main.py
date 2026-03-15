@@ -176,6 +176,8 @@ def record_episode(
     """
     log.info('Record command not implemented yet.')
 
+    # instantiate a session.
+
 
 if __name__ == '__main__':
     app()
