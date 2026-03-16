@@ -9,6 +9,7 @@ from polyumi_pi.files.audio import AudioFile
 
 @pytest.fixture
 def audio_params():
+    """Audio parameters."""
     return dict(sample_rate=16000, channels=1, sample_width=2)
 
 

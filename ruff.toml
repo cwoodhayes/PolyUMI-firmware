@@ -1,6 +1,6 @@
 # ruff.toml for ROS projects
 
-line-length = 79
+line-length = 88
 
 [format]
 quote-style = "single"
