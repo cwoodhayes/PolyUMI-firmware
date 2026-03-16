@@ -34,9 +34,7 @@ class SessionMetadata(base.SessionDataABC):
     """Abstraction for the metadata file recorded during data collection."""
 
     session_id: str = field(default_factory=lambda: str(uuid4()))
-    created_at: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
-    )
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     duration_s: float | None = None
     pi_hostname: str | None = None
     camera_fps: int | None = None
@@ -45,10 +43,11 @@ class SessionMetadata(base.SessionDataABC):
     audio_sample_rate: int | None = None
     audio_channels: int | None = None
     audio_chunk_ms: int | None = None
-    n_video_frames: int | None = None
-    n_audio_chunks: int | None = None
+    n_video_frames: int = 0
+    n_audio_chunks: int = 0
     video_dropped_frames: int | None = None
     audio_dropped_chunks: int | None = None
+    led_brightness: float | None = None
     notes: str | None = None
     task: str | None = None
     robot: str | None = None
@@ -60,13 +59,9 @@ class SessionMetadata(base.SessionDataABC):
 
     def __post_init__(self):
         if self.path.name != 'metadata.json':
-            raise ValueError(
-                f'Expected metadata.json file, got {self.path.name}'
-            )
+            raise ValueError(f'Expected metadata.json file, got {self.path.name}')
         if self.file_version != 1:
-            raise ValueError(
-                f'Unsupported metadata file version: {self.file_version}'
-            )
+            raise ValueError(f'Unsupported metadata file version: {self.file_version}')
 
     def to_file(self) -> None:
         """Write this metadata to self.path as JSON."""
@@ -89,6 +84,7 @@ class SessionMetadata(base.SessionDataABC):
             'n_audio_chunks': self.n_audio_chunks,
             'video_dropped_frames': self.video_dropped_frames,
             'audio_dropped_chunks': self.audio_dropped_chunks,
+            'led_brightness': self.led_brightness,
             'notes': self.notes,
             'task': self.task,
             'robot': self.robot,

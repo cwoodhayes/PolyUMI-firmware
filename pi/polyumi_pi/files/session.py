@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pathlib
 from dataclasses import dataclass
+from datetime import datetime, timezone
 
 from polyumi_pi.files.audio import AudioFile
 from polyumi_pi.files.base import SessionDataABC
@@ -41,14 +42,10 @@ class SessionFiles(SessionDataABC):
         metadata = SessionMetadata.from_file(metadata_path)
 
         audio_path = path / 'audio.wav'
-        audio = (
-            AudioFile.from_file(audio_path) if audio_path.is_file() else None
-        )
+        audio = AudioFile.from_file(audio_path) if audio_path.is_file() else None
 
         video_path = path / 'video.avi'
-        video = (
-            VideoFile.from_file(video_path) if video_path.is_file() else None
-        )
+        video = VideoFile.from_file(video_path) if video_path.is_file() else None
 
         return cls(path=path, metadata=metadata, audio=audio, video=video)
 
@@ -87,7 +84,13 @@ class SessionFiles(SessionDataABC):
             latest_symlink.symlink_to(path)
         return session
 
-    def init_audio(self, sample_rate: int, channels: int, sample_width: int):
+    def init_audio(
+        self,
+        sample_rate: int,
+        channels: int,
+        sample_width: int,
+        chunk_ms: int,
+    ):
         """Create an audio file for this session."""
         if self.audio is not None:
             raise ValueError('Audio file already exists for this session.')
@@ -99,6 +102,11 @@ class SessionFiles(SessionDataABC):
             channels=channels,
             sample_width=sample_width,
         )
+
+        self.metadata.audio_sample_rate = sample_rate
+        self.metadata.audio_channels = channels
+        self.metadata.audio_chunk_ms = chunk_ms
+        self.metadata.n_audio_chunks = 0
 
     def init_video(self, fps: float, width: int, height: int):
         """Create a video file for this session."""
@@ -112,3 +120,15 @@ class SessionFiles(SessionDataABC):
             width=width,
             height=height,
         )
+
+        self.metadata.camera_fps = int(fps)
+        self.metadata.camera_resolution = (width, height)
+        self.metadata.n_video_frames = 0
+
+    def finalize(self):
+        """Finalize the session by writing metadata to file."""
+        if self.metadata.duration_s is None:
+            self.metadata.duration_s = (
+                datetime.now(timezone.utc) - self.metadata.created_at
+            ).total_seconds()
+        self.metadata.to_file()

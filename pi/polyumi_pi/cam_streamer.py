@@ -119,6 +119,8 @@ class CameraStreamer:
 
                     if video_recorder is not None:
                         video_recorder.write_frame(data.getvalue(), msg.timestamp_ns)
+                        if self.session is not None:
+                            self.session.metadata.n_video_frames += 1
 
                     log.debug(
                         f'Captured frame at {msg.timestamp_ns} ns, '

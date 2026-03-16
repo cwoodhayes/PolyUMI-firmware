@@ -184,6 +184,10 @@ def record_episode(
     sample_rate: int = typer.Option(16000, help='Audio sample rate (Hz).'),
     chunk_ms: int = typer.Option(20, help='Audio chunk size (ms).'),
     channels: int = typer.Option(1, help='Number of audio channels.'),
+    robot: str = typer.Option(
+        'polyumi_gripper', help='Name of the robot being recorded.'
+    ),
+    task: str = typer.Option('unspecified', help='Name of the task being recorded.'),
 ):
     """
     Record an episode; video and audio data is routed to local files.
@@ -192,14 +196,18 @@ def record_episode(
     """
     log.info(f'Log level: {logging.getLevelName(log.level)}')
 
-    # TODO remove--make it so we don't stream here.
-    video_port = None
-    audio_port = None
-
     # instantiate a session.
     session = SessionFiles.create()
+    session.metadata.robot = robot
+    session.metadata.task = task
+
     log.info(f'Created session with ID {session.metadata.session_id} at {session.path}')
-    session.init_audio(sample_rate=sample_rate, channels=channels, sample_width=2)
+    session.init_audio(
+        sample_rate=sample_rate,
+        channels=channels,
+        sample_width=2,
+        chunk_ms=chunk_ms,
+    )
     session.init_video(
         fps=fps,
         width=CameraStreamer.CAPTURE_WIDTH,
@@ -210,19 +218,20 @@ def record_episode(
     audio_process: multiprocessing.Process | None = None
 
     try:
-        # todo write LED brightness to metadata.
-        led.set_brightness(1.0)
+        led_brightness = 1.0
+        session.metadata.led_brightness = led_brightness
+        led.set_brightness(led_brightness)
         log.info('Starting camera streamer...')
         cam_process = multiprocessing.Process(
             target=_run_video_streamer,
-            args=(video_port, fps, session),
+            args=(None, fps, session),
         )
         cam_process.start()
 
         log.info('Starting audio streamer...')
         audio_process = multiprocessing.Process(
             target=_run_audio_streamer,
-            args=(audio_port, sample_rate, chunk_ms, channels, session),
+            args=(None, sample_rate, chunk_ms, channels, session),
         )
         audio_process.start()
 
@@ -234,7 +243,11 @@ def record_episode(
         _stop_child_process(cam_process)
         _stop_child_process(audio_process)
         led.set_brightness(0.0)
-        session.metadata.to_file()
+        session.finalize()
+        log.info(
+            f'Session finalized (t={session.metadata.duration_s}). '
+            f'Data saved to {session.path}'
+        )
 
 
 @app.command('clean-sessions')

@@ -55,10 +55,7 @@ class AudioStreamer:
         """Find sounddevice index by ALSA card name."""
         devices = sd.query_devices()
         for i, dev in enumerate(devices):
-            if (
-                name.lower() in dev['name'].lower()
-                and dev['max_input_channels'] > 0
-            ):
+            if name.lower() in dev['name'].lower() and dev['max_input_channels'] > 0:
                 return i
         raise RuntimeError(
             f"Could not find input device matching '{name}'. "
@@ -154,6 +151,7 @@ class AudioStreamer:
                 and self.session.audio is not None
             ):
                 wav_writer.writeframes(pcm_bytes)
+                self.session.metadata.n_audio_chunks += 1
                 if self.session.metadata.audio_start_time_ns is None:
                     self.session.metadata.audio_start_time_ns = ts
 
@@ -176,9 +174,7 @@ class AudioStreamer:
                     pcm_bytes, ts = audio_queue.get(timeout=1.0)
                 except queue.Empty:
                     continue
-                msg = self.build_chunk(
-                    pcm_bytes, self.sample_rate, self.channels, ts
-                )
+                msg = self.build_chunk(pcm_bytes, self.sample_rate, self.channels, ts)
                 socket.send(msg)
                 sent_chunks += 1
 
@@ -196,18 +192,14 @@ class AudioStreamer:
 
         pub_thread = None
         if streaming_enabled:
-            pub_thread = threading.Thread(
-                target=publisher, args=(sock,), daemon=True
-            )
+            pub_thread = threading.Thread(target=publisher, args=(sock,), daemon=True)
             pub_thread.start()
 
         wav_writer = None
         # Start capture stream
         with contextlib.ExitStack() as stack:
             if self.session is not None and self.session.audio is not None:
-                wav_writer = stack.enter_context(
-                    self.session.audio.recording()
-                )
+                wav_writer = stack.enter_context(self.session.audio.recording())
             with sd.RawInputStream(
                 device=device_index,
                 samplerate=self.sample_rate,
