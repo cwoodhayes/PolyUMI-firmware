@@ -1,3 +1,5 @@
+*.tmp
+
 # generated files
 pi/polyumi_pi/_version.py
 

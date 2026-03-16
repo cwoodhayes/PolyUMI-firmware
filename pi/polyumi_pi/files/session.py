@@ -44,8 +44,8 @@ class SessionFiles(SessionDataABC):
         audio_path = path / 'audio.wav'
         audio = AudioFile.from_file(audio_path) if audio_path.is_file() else None
 
-        video_path = path / 'video.avi'
-        video = VideoFile.from_file(video_path) if video_path.is_file() else None
+        video_path = path / 'video'
+        video = VideoFile.from_file(video_path) if video_path.is_dir() else None
 
         return cls(path=path, metadata=metadata, audio=audio, video=video)
 
@@ -113,7 +113,7 @@ class SessionFiles(SessionDataABC):
         if self.video is not None:
             raise ValueError('Video file already exists for this session.')
 
-        video_path = self.path / 'video.avi'
+        video_path = self.path / 'video'
         self.video = VideoFile(
             path=video_path,
             fps=fps,

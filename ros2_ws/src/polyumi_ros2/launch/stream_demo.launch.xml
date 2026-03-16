@@ -2,6 +2,7 @@
 <launch>
   <arg name="pi_host" description="IP address or dns name of the Raspberry Pi"
     default="10.106.10.62"/>
+  <arg name="video_device" description="Video device to use for the camera node" default="/dev/video2"/>
 
   <include file="$(find-pkg-share foxglove_bridge)/launch/foxglove_bridge_launch.xml">
     <arg name="port" value="8765"/>
@@ -11,7 +12,7 @@
 
   <node pkg="v4l2_camera" exec="v4l2_camera_node" name="gopro" output="screen"
     namespace="gopro">
-    <param name="video_device" value="/dev/video2"/>
+    <param name="video_device" value="$(var video_device)"/>
     <param name="image_size" value="[1920,1080]"/>
     <param name="pixel_format" value="YUYV"/>
     <param name="time_per_frame" value="[1,60]"/>

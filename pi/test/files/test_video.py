@@ -24,7 +24,7 @@ def make_jpeg(width: int = WIDTH, height: int = HEIGHT) -> bytes:
 def video_file(tmp_path):
     """Return a VideoFile instance pointing at a temp directory."""
     return VideoFile(
-        path=tmp_path / 'video.avi',
+        path=tmp_path / 'video',
         fps=FPS,
         width=WIDTH,
         height=HEIGHT,
@@ -37,22 +37,9 @@ def video_file(tmp_path):
 
 
 def test_timestamps_path_default(tmp_path):
-    """timestamps_path is derived from the AVI path when not supplied."""
-    vf = VideoFile(path=tmp_path / 'video.avi', fps=FPS, width=WIDTH, height=HEIGHT)
-    assert vf.timestamps_path == tmp_path / 'video_timestamps.csv'
-
-
-def test_timestamps_path_explicit(tmp_path):
-    """An explicit timestamps_path is preserved unchanged."""
-    ts = tmp_path / 'custom_ts.csv'
-    vf = VideoFile(
-        path=tmp_path / 'video.avi',
-        fps=FPS,
-        width=WIDTH,
-        height=HEIGHT,
-        timestamps_path=ts,
-    )
-    assert vf.timestamps_path == ts
+    """timestamps_path is always the sidecar CSV in the frame directory."""
+    vf = VideoFile(path=tmp_path / 'video', fps=FPS, width=WIDTH, height=HEIGHT)
+    assert vf.timestamps_path == tmp_path / 'video' / 'video_timestamps.csv'
 
 
 # ---------------------------------------------------------------------------
@@ -61,20 +48,19 @@ def test_timestamps_path_explicit(tmp_path):
 
 
 def test_recording_creates_files(video_file, tmp_path):
-    """recording() creates both the AVI and the timestamps CSV."""
+    """recording() creates frame dir and timestamps CSV sidecar."""
     with video_file.recording():
         pass
 
-    assert (tmp_path / 'video.avi').is_file()
-    assert (tmp_path / 'video_timestamps.csv').is_file()
+    assert (tmp_path / 'video').is_dir()
+    assert (tmp_path / 'video' / 'video_timestamps.csv').is_file()
 
 
 def test_recording_cleans_up_state(video_file):
-    """Internal writer/fp references are None after the context exits."""
+    """Internal timestamp writer references are None after context exits."""
     with video_file.recording():
         pass
 
-    assert video_file._writer is None
     assert video_file._timestamps_fp is None
     assert video_file._timestamps_writer is None
 
@@ -115,11 +101,23 @@ def test_write_frame_timestamps_csv(video_file, tmp_path):
         for ts in ts_values:
             vf.write_frame(make_jpeg(), timestamp_ns_value=ts)
 
-    rows = list(csv.reader((tmp_path / 'video_timestamps.csv').open()))
+    rows = list(csv.reader((tmp_path / 'video' / 'video_timestamps.csv').open()))
     assert len(rows) == 3
     for i, (row, ts) in enumerate(zip(rows, ts_values)):
         assert int(row[0]) == i
         assert int(row[1]) == ts
+
+
+def test_write_frame_creates_jpeg_files(video_file, tmp_path):
+    """Each write_frame() writes one raw JPEG file with sequential naming."""
+    jpg = make_jpeg()
+    with video_file.recording() as vf:
+        vf.write_frame(jpg)
+        vf.write_frame(jpg)
+
+    assert (tmp_path / 'video' / 'frame_000000.jpg').is_file()
+    assert (tmp_path / 'video' / 'frame_000001.jpg').is_file()
+    assert (tmp_path / 'video' / 'frame_000000.jpg').read_bytes() == jpg
 
 
 def test_write_frame_uses_time_ns_when_no_timestamp(video_file):
@@ -136,33 +134,27 @@ def test_write_frame_uses_time_ns_when_no_timestamp(video_file):
     assert before <= ts <= after
 
 
-def test_write_frame_wrong_size_raises(video_file):
-    """write_frame() raises if the decoded JPEG has the wrong dimensions."""
-    wrong_jpeg = make_jpeg(width=WIDTH * 2, height=HEIGHT * 2)
-    with video_file.recording() as vf:
-        with pytest.raises(ValueError, match='Frame size mismatch'):
-            vf.write_frame(wrong_jpeg)
-
-
-def test_write_frame_invalid_jpeg_raises(video_file):
-    """write_frame() raises if the bytes cannot be decoded as a JPEG."""
-    with video_file.recording() as vf:
-        with pytest.raises(ValueError, match='Failed to decode'):
-            vf.write_frame(b'not a jpeg')
-
-
 # ---------------------------------------------------------------------------
 # from_file() round-trip
 # ---------------------------------------------------------------------------
 
 
 def test_from_file_roundtrip(video_file, tmp_path):
-    """from_file() recovers fps, width, and height written by recording()."""
+    """from_file() recovers width/height from first frame in directory."""
     with video_file.recording() as vf:
         vf.write_frame(make_jpeg())
 
-    loaded = VideoFile.from_file(tmp_path / 'video.avi')
+    loaded = VideoFile.from_file(tmp_path / 'video')
 
-    assert loaded.fps == pytest.approx(FPS, rel=0.01)
+    assert loaded.fps == 0.0
     assert loaded.width == WIDTH
     assert loaded.height == HEIGHT
+
+
+def test_from_file_raises_for_empty_directory(tmp_path):
+    """from_file() rejects frame directories with no JPEG files."""
+    path = tmp_path / 'video'
+    path.mkdir()
+
+    with pytest.raises(ValueError, match='No JPEG frames found'):
+        VideoFile.from_file(path)
