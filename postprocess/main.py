@@ -43,23 +43,51 @@ REMOTE_RECORDINGS_DIR = '~/recordings'
 VIDEO_OUTPUT_NAME = 'finger.mp4'
 
 
-def _rsync_session(
+def _copy_session_tar_over_ssh(
     host: str,
     remote_path: str,
     local_path: pathlib.Path,
+    verbose: bool = False,
 ) -> None:
-    """Rsync a single session directory from the Pi to a local path."""
-    local_path.mkdir(parents=True, exist_ok=True)
-    cmd = [
-        'rsync',
-        '-av',
-        '--progress',
-        f'{host}:{remote_path}/',
-        str(local_path) + '/',
+    """Copy a session directory using tar streamed over ssh."""
+    remote_path_posix = pathlib.PurePosixPath(remote_path)
+    remote_parent = str(remote_path_posix.parent)
+    remote_name = remote_path_posix.name
+
+    local_parent = local_path.parent.resolve()
+    local_parent.mkdir(parents=True, exist_ok=True)
+
+    remote_cmd = [
+        'ssh',
+        host,
+        'tar',
+        '-C',
+        remote_parent,
+        '-cf',
+        '-',
+        remote_name,
     ]
-    result = subprocess.run(cmd, check=True)
-    if result.returncode != 0:
-        raise RuntimeError(f'rsync failed for {remote_path}')
+    extract_cmd = ['tar', '-C', str(local_parent), '-xf', '-']
+
+    if verbose:
+        extract_cmd.insert(1, '-v')
+
+    remote_proc = subprocess.Popen(remote_cmd, stdout=subprocess.PIPE)
+    if remote_proc.stdout is None:
+        raise RuntimeError('Failed to open ssh stream for tar transfer.')
+
+    extract_result = subprocess.run(
+        extract_cmd,
+        stdin=remote_proc.stdout,
+        check=False,
+    )
+    remote_proc.stdout.close()
+    remote_rc = remote_proc.wait()
+
+    if remote_rc != 0:
+        raise RuntimeError(f'ssh/tar sender failed with code {remote_rc}')
+    if extract_result.returncode != 0:
+        raise RuntimeError(f'tar extract failed with code {extract_result.returncode}')
 
 
 def _list_remote_sessions(host: str) -> list[str]:
@@ -154,8 +182,13 @@ def fetch(
         '--latest',
         help='Only fetch the latest session.',
     ),
+    verbose_transfer: bool = typer.Option(
+        False,
+        '--verbose-transfer',
+        help='Show detailed transfer output for debugging.',
+    ),
 ):
-    """Fetch recorded sessions from the Pi via rsync."""
+    """Fetch recorded sessions from the Pi via tar-over-ssh."""
     output_dir = output_dir.resolve()
 
     if latest:
@@ -206,7 +239,12 @@ def fetch(
         remote_path = f'{REMOTE_RECORDINGS_DIR}/{session_name}'
         local_path = output_dir / session_name
         log.info(f'[{i}/{len(to_fetch)}] Fetching {session_name}...')
-        _rsync_session(host, remote_path, local_path)
+        _copy_session_tar_over_ssh(
+            host,
+            remote_path,
+            local_path,
+            verbose=verbose_transfer,
+        )
         log.info(f'  -> {local_path}')
 
     log.info(f'Done. Fetched {len(to_fetch)} session(s) to {output_dir}.')
@@ -304,9 +342,7 @@ def process_all(
                 'with existing outputs due to --force.'
             )
         else:
-            log.info(
-                f'Skipping {len(already_processed)} already processed session(s).'
-            )
+            log.info(f'Skipping {len(already_processed)} already processed session(s).')
     if missing_video:
         log.warning(
             f'Skipping {len(missing_video)} session(s) without a video directory.'
