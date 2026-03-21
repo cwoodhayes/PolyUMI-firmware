@@ -1,3 +1,5 @@
+<iframe width="720" height="405" src="https://www.youtube.com/embed/lprvheXONTs?autoplay=1&loop=1&playlist=lprvheXONTs&mute=1&showinfo=0&rel=0" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
 # PolyUMI: Visual + Auditory + Tactile Manipulation Platform for Imitation Learning
 
 **Project website:** https://cwoodhayes.github.io/projects/polyumi
