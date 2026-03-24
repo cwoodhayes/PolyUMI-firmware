@@ -59,16 +59,10 @@ class PiReceiverNode(Node):
         self.declare_parameter('port', 5555)
         self.declare_parameter('audio_port', 5556)
 
-        self._pi_host = (
-            self.get_parameter('pi_host').get_parameter_value().string_value
-        )
-        self._port = (
-            self.get_parameter('port').get_parameter_value().integer_value
-        )
+        self._pi_host = self.get_parameter('pi_host').get_parameter_value().string_value
+        self._port = self.get_parameter('port').get_parameter_value().integer_value
         self._audio_port = (
-            self.get_parameter('audio_port')
-            .get_parameter_value()
-            .integer_value
+            self.get_parameter('audio_port').get_parameter_value().integer_value
         )
 
         self.camera_pub = self.create_publisher(
@@ -84,14 +78,10 @@ class PiReceiverNode(Node):
 
         self._zmq_context = zmq.Context()
 
-        recv_thread = threading.Thread(
-            target=self._camera_recv_loop, daemon=True
-        )
+        recv_thread = threading.Thread(target=self._camera_recv_loop, daemon=True)
         recv_thread.start()
 
-        audio_recv_thread = threading.Thread(
-            target=self._audio_recv_loop, daemon=True
-        )
+        audio_recv_thread = threading.Thread(target=self._audio_recv_loop, daemon=True)
         audio_recv_thread.start()
 
         self.get_logger().info(
@@ -149,9 +139,7 @@ class PiReceiverNode(Node):
             frame_bytes = max(1, proto.channels * bytes_per_sample)
             sample_frames = len(proto.pcm_data) // frame_bytes
             if proto.sample_rate > 0:
-                expected_delta_ns = int(
-                    sample_frames * 1_000_000_000 / proto.sample_rate
-                )
+                expected_delta_ns = int(sample_frames * 1e9 / proto.sample_rate)
             else:
                 expected_delta_ns = 0
 
@@ -176,10 +164,9 @@ class PiReceiverNode(Node):
             self.audio_pub.publish(ros_msg)
 
             now_ns = self.get_clock().now().nanoseconds
-            if now_ns - last_stats_t >= 1_000_000_000:
+            if now_ns - last_stats_t >= 1e9:
                 self.get_logger().info(
-                    'Audio rx stats: '
-                    f'chunks={chunks}/s gaps={gap_warnings}'
+                    f'Audio rx stats: chunks={chunks}/s gaps={gap_warnings}'
                 )
                 chunks = 0
                 gap_warnings = 0

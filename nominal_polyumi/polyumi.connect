@@ -62,7 +62,9 @@ tiles:
             should_fill: true
             elements:
             - plot: line
-              stream_id: ''
+              stream_id: polyumi_audio
+              channels:
+              - PolyUMI Audio (raw PCM)
               colors: []
               legend_placement: bottom_left
               x_format: timestamp

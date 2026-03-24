@@ -25,8 +25,11 @@ log = logging.getLogger('polyumi_connect')
 class PolyUMIConnect:
     """Reroute PolyUMI data to Connect."""
 
-    def __init__(self, pi_host: str, port: int, audio_port: int) -> None:
+    def __init__(
+        self, client: connect_python.Client, pi_host: str, port: int, audio_port: int
+    ) -> None:
         """Initialize the object."""
+        self._client = client
         self._pi_host = pi_host
         self._port = port
         self._audio_port = audio_port
@@ -109,7 +112,28 @@ class PolyUMIConnect:
             last_ts_ns = proto.timestamp_ns
             chunks += 1
 
-            # todo publish to Connect
+            # publish to Connect
+            timestamps = [
+                proto.timestamp_ns + int(i * 1e9 / proto.sample_rate)
+                for i in range(sample_frames)
+            ]
+            arr = np.frombuffer(proto.pcm_data, dtype=np.int16).reshape(
+                -1, proto.channels
+            )
+            values = arr[:, 0].tolist()  # for now just publish the first channel
+            log.info(
+                f'Publishing audio chunk: n_frames={sample_frames} timestamps={timestamps[0]}-{timestamps[-1]} '
+                f'values len={len(values)}, timestamps len = {len(timestamps)}'
+            )
+
+            self._client.stream_batch(
+                stream_id='polyumi_audio',
+                timestamps=timestamps,
+                values=values,
+                name='PolyUMI Audio (raw PCM)',
+                names=['channel_L'],
+                unit='bits',
+            )
 
             now_ns = time.monotonic_ns()
             if now_ns - last_stats_t >= 1e9:
@@ -127,30 +151,11 @@ def stream_data(client: connect_python.Client):
     port = 5555
     audio_port = 5556
 
-    cnx = PolyUMIConnect(pi_host, port, audio_port)
+    cnx = PolyUMIConnect(client, pi_host, port, audio_port)
     cnx.start()
 
-    batch_size = 100
-    sample_rate = 1000  # Hz
-
     while True:
-        now = time.time()
-        dt = 1.0 / sample_rate
-
-        # Generate a batch of timestamps and values
-        timestamps = [now + i * dt for i in range(batch_size)]
-        values = [float(np.sin(2 * np.pi * t)) for t in timestamps]
-
-        # Stream the entire batch at once
-        client.stream_batch(
-            stream_id='batch_signal',
-            timestamps=timestamps,
-            values=values,
-            name='sine',
-            unit='V',
-        )
-
-        time.sleep(batch_size * dt)
+        time.sleep(1)
 
 
 if __name__ == '__main__':
