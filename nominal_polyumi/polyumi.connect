@@ -7,7 +7,9 @@ timeline:
   pixels_per_tick: 0.0
   milestones: []
 streaming:
-  buffer_size: 5000
+  buffer_size:
+    unit: Seconds
+    value: 10
   timeline: null
   playback_speed: null
   window: null
@@ -49,7 +51,7 @@ tiles:
             elements:
             - display: video
               mcap: null
-              frames: ''
+              frames: pi_camera
               height: null
       - height: 0.4593784
         columns:
@@ -65,7 +67,8 @@ tiles:
               stream_id: polyumi_audio
               channels:
               - PolyUMI Audio (raw PCM)
-              colors: []
+              colors:
+              - rgb(0, 0, 0)
               legend_placement: bottom_left
               x_format: timestamp
               x_time_display: Local

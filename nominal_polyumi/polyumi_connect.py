@@ -5,6 +5,7 @@ Run `python polyumi_pi/main.py stream` on the PolyUMI pi to produce data for
 this to ingest. (see PolyUMI repo README for more details).
 """
 
+import io
 import logging
 import threading
 import time
@@ -13,6 +14,7 @@ from datetime import datetime
 import connect_python
 import numpy as np
 import zmq
+from PIL import Image
 from polyumi_pi_msgs import (
     audio_chunk_pb2,
     camera_frame_pb2,
@@ -71,7 +73,23 @@ class PolyUMIConnect:
             proto = camera_frame_pb2.CameraFrame()
             proto.ParseFromString(raw)
 
-            # todo publish to Connect
+            # Decompress JPEG to raw RGB
+            try:
+                image = Image.open(io.BytesIO(proto.jpeg_data))
+                rgb_image = image.convert('RGB')
+                rgb_array = np.array(rgb_image)
+                log.debug(f'RGB shape: {rgb_array.shape}')
+            except Exception as e:
+                log.error(f'Failed to decode JPEG: {e}')
+                continue
+
+            # publish to Connect
+            self._client.stream_rgb(
+                'pi_camera',
+                timestamp=proto.timestamp_ns,
+                data=rgb_array.tobytes(),
+                width=rgb_array.shape[1],
+            )
 
     def _audio_recv_loop(self):
         sock = self._zmq_context.socket(zmq.PULL)
@@ -121,7 +139,7 @@ class PolyUMIConnect:
                 -1, proto.channels
             )
             values = arr[:, 0].tolist()  # for now just publish the first channel
-            log.info(
+            log.debug(
                 f'Publishing audio chunk: n_frames={sample_frames} timestamps={timestamps[0]}-{timestamps[-1]} '
                 f'values len={len(values)}, timestamps len = {len(timestamps)}'
             )
@@ -132,7 +150,7 @@ class PolyUMIConnect:
                 values=values,
                 name='PolyUMI Audio (raw PCM)',
                 names=['channel_L'],
-                unit='bits',
+                unit='bit',
             )
 
             now_ns = time.monotonic_ns()
