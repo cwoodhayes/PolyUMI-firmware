@@ -40,7 +40,7 @@ class PolyUMIConnect:
     def start(self):
         """Start publishing data to Connect."""
         recv_thread = threading.Thread(
-            target=self._camera_recv_loop,
+            target=self._finger_camera_recv_loop,
             daemon=True,
         )
         recv_thread.start()
@@ -58,7 +58,7 @@ class PolyUMIConnect:
         log.info(f'Receiving audio from tcp://{self._pi_host}:{self._audio_port}')
         log.info('Publishing audio on /pi/audio/raw')
 
-    def _camera_recv_loop(self):
+    def _finger_camera_recv_loop(self):
         sock = self._zmq_context.socket(zmq.PULL)
         sock.connect(f'tcp://{self._pi_host}:{self._port}')
 

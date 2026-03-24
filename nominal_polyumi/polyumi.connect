@@ -27,9 +27,9 @@ tiles:
     tile:
       layout: grid
       rows:
-      - height: 1.2537618
+      - height: 1.1153464
         columns:
-        - width: null
+        - width: 0.9843259
           tile:
             layout: pane
             id: a023cfac-2ab7-4b89-8c81-914a160cea46
@@ -39,9 +39,9 @@ tiles:
             elements:
             - display: video
               mcap: null
-              frames: ''
+              frames: gopro_camera
               height: null
-        - width: null
+        - width: 1.0156739
           tile:
             layout: pane
             id: 7ab19964-1df0-4fe5-a56d-f60b1d96c02a
@@ -53,13 +53,13 @@ tiles:
               mcap: null
               frames: pi_camera
               height: null
-      - height: 0.4593784
+      - height: 0.4774325
         columns:
         - width: null
           tile:
             layout: pane
             id: c94d5a8f-738c-4c15-be33-172f5eb05854
-            title: PMC AUDIO TRACE
+            title: PCM AUDIO TRACE
             direction: vertical
             should_fill: true
             elements:
@@ -74,7 +74,7 @@ tiles:
               x_time_display: Local
               x_scale: linear
               y_scale: linear
-      - height: 0.2868606
+      - height: 0.40722185
         columns:
         - width: null
           tile:
@@ -89,6 +89,11 @@ tiles:
               - id: null
                 label: null
                 path: polyumi_connect.py
+                args: []
+                max_log_lines: 10000
+              - id: null
+                label: null
+                path: polyumi_gopro.py
                 args: []
                 max_log_lines: 10000
               show_output_column: false
